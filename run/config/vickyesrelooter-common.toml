@@ -1,0 +1,7 @@
+
+[General]
+	#This set weather or not already loaded chunks (before mod was added. etc.) should be affected.
+	clearAlreadyLoadedChunks = true
+	#Once a chunk is affected it can't be affected again.
+	applyOnlyOnce = true
+
