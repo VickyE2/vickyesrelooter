@@ -30,4 +30,8 @@ public class SimpleSlider extends AbstractSliderButton {
     protected void applyValue() {
         onValueChanged.onChange(value);
     }
+
+    public void setValue(double value) {
+        this.value = value;
+    }
 }

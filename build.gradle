@@ -12,7 +12,6 @@ if (!modrinthToken) {
     throw new GradleException("Missing environment variable: MODRINTH_TOKEN")
 }
 
-import com.modrinth.minotaur.dependencies.ModDependency
 modrinth {
     token = modrinthToken
     projectId = modrinth_proj_id

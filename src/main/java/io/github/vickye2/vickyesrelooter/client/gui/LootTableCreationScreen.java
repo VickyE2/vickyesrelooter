@@ -11,7 +11,10 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -36,7 +39,7 @@ public class LootTableCreationScreen extends Screen {
     private final List<AbstractWidget> lootableWidgets = new ArrayList<>();
 
     public LootTableCreationScreen() {
-        super(Component.literal("Create Loot Table"));
+        super(Component.literal(""));
     }
 
     @Override
@@ -51,10 +54,28 @@ public class LootTableCreationScreen extends Screen {
         y += 20 + spacing;
 
         emptyWeight = new EditBox(this.font, centerX - 100, y, 200, 20, Component.literal("Emptiness Weight"));
+        emptyWeight.setResponder(text -> {
+            if (!text.matches("\\d*")) {
+                // Only update if it actually changes
+                String sanitized = text.replaceAll("\\D", ""); // remove non-digit
+                if (!sanitized.equals(text)) {
+                    emptyWeight.setValue(sanitized); // safe now
+                }
+            }
+        });
         this.addRenderableWidget(emptyWeight);
         y += 20 + spacing;
 
         tableWeight = new EditBox(this.font, centerX - 100, y, 200, 20, Component.literal("Table Weight"));
+        tableWeight.setResponder(text -> {
+            if (!text.matches("\\d*")) {
+                // Only update if it actually changes
+                String sanitized = text.replaceAll("\\D", ""); // remove non-digit
+                if (!sanitized.equals(text)) {
+                    tableWeight.setValue(sanitized); // safe now
+                }
+            }
+        });
         this.addRenderableWidget(tableWeight);
         y += 40 + spacing;
 
@@ -69,17 +90,12 @@ public class LootTableCreationScreen extends Screen {
 
         y += spacing + 5;
 
-        textColorPicker = new ColorPickerWidget(19, y, (colorInt) -> {
-            lootableNameField.setTextColor(colorInt);
-            return null;
-        });
+        textColorPicker = new ColorPickerWidget(19, y,
+                (colorInt) -> lootableNameField.setTextColor(colorInt));
         this.addRenderableWidget(textColorPicker);
 
-
-        descriptionColorPicker = new ColorPickerWidget(20 + 170, y, (colorInt) -> {
-            lootableDescField.setTextColor(colorInt);
-            return null;
-        });
+        descriptionColorPicker = new ColorPickerWidget(20 + 170, y,
+                (colorInt) -> lootableDescField.setTextColor(colorInt));
         this.addRenderableWidget(descriptionColorPicker);
         y += 70 + spacing;
 
@@ -89,10 +105,7 @@ public class LootTableCreationScreen extends Screen {
                 20, y,
                 () -> minAmountValue,
                 () -> 64,
-                value -> {
-                    maxAmountValue = value;
-                    return null;
-                }
+                value -> maxAmountValue = value
         );
         addRenderableWidget(maxAmount);
 
@@ -100,10 +113,7 @@ public class LootTableCreationScreen extends Screen {
                 200, y,
                 () -> 1,
                 () -> maxAmountValue,
-                value -> {
-                    minAmountValue = value;
-                    return null;
-                }
+                value -> minAmountValue = value
         );
         this.addRenderableWidget(minAmount);
         y += 40 + spacing;
@@ -112,17 +122,28 @@ public class LootTableCreationScreen extends Screen {
         lootableWeight.setValue(String.valueOf(1));
         lootableWeight.setResponder(text -> {
             if (!text.matches("\\d*")) {
-                lootableWeight.setValue(text.replaceAll("^\\d", ""));
+                // Only update if it actually changes
+                String sanitized = text.replaceAll("\\D", ""); // remove non-digit
+                if (!sanitized.equals(text)) {
+                    lootableWeight.setValue(sanitized); // safe now
+                }
             }
         });
         this.addRenderableWidget(lootableWeight);
 
-        this.addRenderableWidget(new PlayerInventoryWidget(invX, invY, clickedStack -> inputStack = clickedStack));
+        this.addRenderableWidget(new PlayerInventoryWidget(invX, invY, clickedStack -> {
+            inputStack = clickedStack;
+            lootableNameField.setValue(getItemName(inputStack));
+            textColorPicker.setValue(getItemColor(inputStack));
+            maxAmount.setValue(inputStack.getCount());
+            maxAmountValue = inputStack.getCount();
+            maxAmount.setValue(maxAmountValue);
+        }));
         this.addRenderableWidget(Button.builder(Component.literal("+"), btn -> {
             if (!inputStack.isEmpty()) {
                 LootableHolder.Lootable lootable
                         = new LootableHolder.Lootable();
-                lootable.id = "";
+                lootable.id = ForgeRegistries.ITEMS.getKey(inputStack.getItem()).toString();
                 lootable.weight = Integer.parseInt(lootableWeight.getValue());
                 lootable.maxAmount = maxAmountValue;
                 lootable.minAmount = minAmountValue;
@@ -137,15 +158,37 @@ public class LootTableCreationScreen extends Screen {
                 lootableWeight.setValue("0");
                 lootableDescField.setValue("");
                 lootableNameField.setValue("");
+                initItemGrid();
             }
         }).bounds(width - 30, 4*18 + 30, 20, 20).build());
 
         this.addRenderableWidget(Button.builder(Component.literal("Confirm"), btn -> {
             confirmTable();
         }).bounds(width - 9*18, height - 30, 9*18 - 10, 20).build());
+
+        initItemGrid();
     }
 
-    public void initItemGrid(GuiGraphics stack) {
+    public static String getItemName(ItemStack stack) {
+        Component name = stack.getHoverName(); // gets the display name
+        return name.getString();               // plain string without formatting
+    }
+
+    public static int getItemColor(ItemStack stack) {
+        Component name = stack.getHoverName();
+        Style style = name.getStyle();
+
+        // getTextColor() returns TextColor, which has a packed RGB value
+        TextColor color = style.getColor();
+        return color != null ? color.getValue() : 0xFFFFFF; // default to white if no color
+    }
+
+
+    public void initItemGrid() {
+        // remove existing widgets first
+        for (AbstractWidget w : lootableWidgets) removeWidget(w);
+        lootableWidgets.clear();
+
         int slotSize = 18;
         int padding = 4;
         int itemsPerRow = 9;
@@ -154,42 +197,40 @@ public class LootTableCreationScreen extends Screen {
 
         int rows = (lootables.size() + itemsPerRow - 1) / itemsPerRow;
         rows = Math.max(rows, 1);
-        int bgWidth = itemsPerRow * slotSize + padding * 2;
-        int bgHeight = rows * slotSize + padding * 2;
-        stack.fill(startX - padding, startY - padding, startX - padding + bgWidth, startY - padding + bgHeight, 0x44447777); // semi-transparent black
+
         for (int i = 0; i < lootables.size(); i++) {
-            int finalI = i;
+            LootableHolder.Lootable lootable = lootables.get(i);           // keep ref
             int row = i / itemsPerRow;
             int col = i % itemsPerRow;
 
             int x = startX + col * slotSize;
             int y = startY + row * slotSize;
 
-            ItemStack s = lootables.get(i).createStack(mc.font.random);
+            ItemStack s = lootable.createStack(mc.level.random); // or mc.font.random if you have it
+
+            // Use Consumer<ClickActionableItem> ideally; here we accept a widget param
             ClickActionableItem widget = new ClickActionableItem(x, y, s, (thiz) -> {
-                lootables.remove(finalI);
-                lootableWidgets.remove(finalI);
+                // remove the Lootable object (safe) instead of removing by index
+                lootables.remove(lootable);
+                // remove this exact widget instance
                 removeWidget(thiz);
-                rebuildGrid(stack);
-                return null;
+                lootableWidgets.remove(thiz);
+
+                // rebuild grid to re-layout and re-create widgets
+                initItemGrid();
             });
-            lootableWidgets.add(i, widget);
+
+            lootableWidgets.add(widget);
             addRenderableWidget(widget);
         }
     }
 
-    private void rebuildGrid(GuiGraphics stack) {
-        // Remove old grid widgets
-        lootableWidgets.forEach(this::removeWidget);
-        lootableWidgets.clear();
-
-        // Rebuild everything
-        initItemGrid(stack);
+    private void rebuildGrid() {
+        initItemGrid();
     }
 
-
     private void confirmTable() {
-        String id = lootableNameField.getValue().trim();
+        String id = idField.getValue().trim();
         int empty = Integer.parseInt(emptyWeight.getValue().trim());
         int table = Integer.parseInt(tableWeight.getValue().trim());
 
@@ -204,14 +245,15 @@ public class LootTableCreationScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        return super.mouseClicked(mouseX, mouseY, button);
+        boolean handled = super.mouseClicked(mouseX, mouseY, button); // this will call widgets
+        return handled || super.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
     public void render(@NotNull GuiGraphics stack, int mouseX, int mouseY, float partialTicks) {
         this.renderBackground(stack);
         assert mc.screen != null;
-        stack.fill(lootableNameField.getX() - 30, lootableNameField.getY() - 30, lootableDescField.getX() + LENGTH + 30, lootableWeight.getY() + 30, 0xCC000C30); // slot border
+        stack.fill(lootableNameField.getX() - 30, lootableNameField.getY() - 30, lootableDescField.getX() + LENGTH + 30, lootableWeight.getY() + 30, 0x77000CAA); // slot border
 
         stack.drawCenteredString(this.font, this.title, this.width / 2, this.height - 10, 0xFFFFFF);
         stack.drawString(this.font, "Table Id:", idField.getX(), idField.getY() - 15, 0xFFFFFF);
@@ -232,7 +274,5 @@ public class LootTableCreationScreen extends Screen {
                 stack.renderTooltip(font, inputStack, mouseX, mouseY);
             }
         }
-
-        initItemGrid(stack);
     }
 }

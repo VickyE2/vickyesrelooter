@@ -8,60 +8,63 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class ColorPickerWidget extends AbstractWidget {
     private final Minecraft mc = Minecraft.getInstance();
     private final SimpleSlider redSlider, greenSlider, blueSlider;
+    private final Consumer<Integer> onChange;
     private SimpleSlider activeSlider = null;
     private final boolean showHex;
     private final Supplier<Integer> SUP_255 = () -> 255;
 
     private int red = 255, green = 255, blue = 255;
 
-    public ColorPickerWidget(int x, int y, Function<Integer, Void> onChange) {
+    public ColorPickerWidget(int x, int y, Consumer<Integer> onChange) {
         super(x, y, 0, 0, Component.literal("Color Picker"));
 
         int sliderWidth = 120;
         int sliderHeight = 20;
         int spacing = 25;
         showHex = false;
-
+        this.onChange = onChange;
 
         redSlider = new SimpleSlider(x, y, sliderWidth, sliderHeight, "Red", red / 255.0, SUP_255, (value) -> {
             red = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
         greenSlider = new SimpleSlider(x, y + spacing, sliderWidth, sliderHeight, "Green", green / 255.0, SUP_255, (value) -> {
             green = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
         blueSlider = new SimpleSlider(x, y + spacing*2, sliderWidth, sliderHeight, "Blue", blue / 255.0, SUP_255, (value) -> {
             blue = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
     }
 
-    public ColorPickerWidget(int x, int y, Function<Integer, Void> onChange, boolean showHex) {
+    public ColorPickerWidget(int x, int y, Consumer<Integer> onChange, boolean showHex) {
         super(x, y, 0, 0, Component.literal("Color Picker"));
 
         int sliderWidth = 120;
         int sliderHeight = 20;
         int spacing = 25;
         this.showHex = showHex;
+        this.onChange = onChange;
 
         redSlider = new SimpleSlider(x, y, sliderWidth, sliderHeight, "Red", red / 255.0, SUP_255, (value) -> {
             red = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
         greenSlider = new SimpleSlider(x, y + spacing, sliderWidth, sliderHeight, "Green", green / 255.0, SUP_255, (value) -> {
             green = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
         blueSlider = new SimpleSlider(x, y + spacing*2, sliderWidth, sliderHeight, "Blue", blue / 255.0, SUP_255, (value) -> {
             blue = (int) (value * 255);
-            onChange.apply(getColorInt());
+            onChange.accept(getColorInt());
         });
     }
 
@@ -137,5 +140,17 @@ public class ColorPickerWidget extends AbstractWidget {
             return handled;
         }
         return false;
+    }
+
+    public void setValue(int itemColor) {
+        this.red = (itemColor >> 16) & 0xFF;
+        this.green = (itemColor >> 8) & 0xFF;
+        this.blue = itemColor & 0xFF;
+
+        redSlider.setValue(red / 255.0);
+        greenSlider.setValue(green / 255.0);
+        blueSlider.setValue(blue / 255.0);
+
+        if (onChange != null) onChange.accept(getColorInt());
     }
 }

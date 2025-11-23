@@ -7,6 +7,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -20,7 +21,7 @@ public class IntegerPickerWidget extends AbstractWidget {
     private int value;
     private SimpleSlider activeSlider = null;
 
-    public IntegerPickerWidget(int x, int y, Supplier<Integer> min, Supplier<Integer> max, Function<Integer, Void> onChange) {
+    public IntegerPickerWidget(int x, int y, Supplier<Integer> min, Supplier<Integer> max, Consumer<Integer> onChange) {
         super(x, y, 140, 40, Component.literal("Integer Picker"));
 
         this.min = min;
@@ -40,7 +41,7 @@ public class IntegerPickerWidget extends AbstractWidget {
                 max,
                 (res) -> {
                     value = this.min.get() + (int)(res * (this.max.get() - this.min.get()));
-                    onChange.apply(value);
+                    onChange.accept(value);
                 }
         );
     }
@@ -76,4 +77,8 @@ public class IntegerPickerWidget extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(@NotNull NarrationElementOutput narrationElementOutput) {}
+
+    public void setValue(int count) {
+        this.value = count;
+    }
 }

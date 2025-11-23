@@ -7,15 +7,14 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.Consumer;
 
 public class ClickActionableItem extends AbstractWidget {
-    private final Function<ClickActionableItem, Void> onCLick;
+    private final Consumer<ClickActionableItem> onCLick;
     private final ItemStack itemStack;
     private final Minecraft mc = Minecraft.getInstance();
 
-    public ClickActionableItem(int x, int y, ItemStack stack, Function<ClickActionableItem, Void> onCLick) {
+    public ClickActionableItem(int x, int y, ItemStack stack, Consumer<ClickActionableItem> onCLick) {
         super(x, y, 16, 16, Component.literal("Clickable Item"));
         this.onCLick = onCLick;
         this.itemStack = stack;
@@ -24,7 +23,13 @@ public class ClickActionableItem extends AbstractWidget {
     @Override
     public void onClick(double p_93634_, double p_93635_) {
         super.onClick(p_93634_, p_93635_);
-        onCLick.apply(this);
+        onCLick.accept(this);
+    }
+
+    @Override
+    public boolean isMouseOver(double mx, double my) {
+        return mx >= getX() && mx < getX() + width &&
+                my >= getY() && my < getY() + height;
     }
 
     @Override

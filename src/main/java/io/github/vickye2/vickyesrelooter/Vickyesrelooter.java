@@ -68,6 +68,7 @@ public class Vickyesrelooter {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::onLoadComplete);
+        modEventBus.addListener(this::addCreative);
 
         ITEMS.register(modEventBus);
 
@@ -98,23 +99,6 @@ public class Vickyesrelooter {
         } catch (IOException e) {
             LOGGER.info("Failed to start table manager");
             throw new RuntimeException(e);
-        }
-    }
-
-    @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("HELLO from server starting");
-    }
-
-    // You can use EventBusSubscriber to automatically register all static methods in the class annotated with @SubscribeEvent
-    @Mod.EventBusSubscriber(modid = MODID, bus = Mod.EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
-    public static class ClientModEvents {
-
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            // Some client setup code
-            LOGGER.info("HELLO FROM CLIENT SETUP");
-            LOGGER.info("MINECRAFT NAME >> {}", Minecraft.getInstance().getUser().getName());
         }
     }
 
@@ -155,7 +139,6 @@ public class Vickyesrelooter {
                 chest.setItem(i, stack);
             }
         }
-
 
         chest.getPersistentData()
                 .putBoolean(LOOT_DATA_KEY, true);

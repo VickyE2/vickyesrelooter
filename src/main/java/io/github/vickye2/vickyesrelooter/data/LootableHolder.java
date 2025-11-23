@@ -33,7 +33,7 @@ public class LootableHolder {
             if (item == null) return ItemStack.EMPTY;
 
             int amount =
-                    minAmount == maxAmount || minAmount > maxAmount ? minAmount :
+                    (minAmount == maxAmount || minAmount > maxAmount) ? minAmount :
                             Mth.nextInt(random, this.minAmount, this.maxAmount);
             ItemStack stack = new ItemStack(item, amount);
 
@@ -41,7 +41,7 @@ public class LootableHolder {
 
             if (this.name != null)
                 display.putString("Name", Component.Serializer.toJson(
-                        Component.literal(this.name).withStyle(Style.EMPTY.withColor(this.descriptionColor))
+                        Component.literal(this.name).withStyle(Style.EMPTY.withColor(this.textColor))
                 ));
 
             if (this.description != null)
