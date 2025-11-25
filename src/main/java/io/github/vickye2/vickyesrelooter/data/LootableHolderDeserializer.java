@@ -21,14 +21,23 @@ public class LootableHolderDeserializer implements JsonDeserializer<LootableHold
         loot.emptyWeight = getInt(obj, "emptyWeight", 45);
         loot.tableWeight = getInt(obj, "tableWeight", new Random().nextInt(5, 10));
 
-        JsonArray itemsArray = obj.has("items") ? obj.getAsJsonArray("items") : new JsonArray();
+        JsonArray itemsArray = obj.has("lootables") ? obj.getAsJsonArray("lootables") : new JsonArray();
 
-        List<LootableHolder.Lootable> items = new ArrayList<>();
+        List<LootableHolder.Lootable> items1 = new ArrayList<>();
         for (JsonElement el : itemsArray) {
             LootableHolder.Lootable item = ctx.deserialize(el, LootableHolder.Lootable.class);
-            items.add(item);
+            items1.add(item);
         }
-        loot.lootables = items;
+        loot.lootables = items1;
+
+        JsonArray itemsArray2 = obj.has("singleLootables") ? obj.getAsJsonArray("singleLootables") : new JsonArray();
+
+        List<LootableHolder.Lootable> items2 = new ArrayList<>();
+        for (JsonElement el : itemsArray2) {
+            LootableHolder.Lootable item = ctx.deserialize(el, LootableHolder.Lootable.class);
+            items2.add(item);
+        }
+        loot.singleLootables = items2;
 
         return loot;
     }

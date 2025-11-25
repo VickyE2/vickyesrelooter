@@ -20,8 +20,11 @@ modrinth {
     loaders = ['forge']
     status = "BETA"
     changelog = """
-# VERSION - 0.0.1
-> This is the base version with nothing much going on. no changes whatsoever (base).
+# VERSION - 0.0.2
+> There was a MAJOR fix.
+- Fixed loot tables not loading because of file mismatch (major fix)
+- Added support for single lootables (loads once per chest) also in the gui creator (minor addition)
+- Added reload to config (minor addition)
 """
 }
 

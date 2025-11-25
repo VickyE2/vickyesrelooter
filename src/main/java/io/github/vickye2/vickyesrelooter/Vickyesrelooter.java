@@ -17,13 +17,16 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.BarrelBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
+import net.minecraft.world.level.block.entity.RandomizableContainerBlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.BuildCreativeModeTabContentsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
@@ -39,12 +42,19 @@ import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+import net.minecraftforge.server.ServerLifecycleHooks;
 import org.slf4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static io.github.vickye2.vickyesrelooter.config.RelooterConfig.applyOnlyOnce;
+import static io.github.vickye2.vickyesrelooter.config.RelooterConfig.enableRelooter;
 
 // The value here should match an entry in the META-INF/mods.toml file
 @Mod(Vickyesrelooter.MODID)
@@ -74,7 +84,7 @@ public class Vickyesrelooter {
 
         MinecraftForge.EVENT_BUS.register(this);
 
-        Path tablesFolder = Paths.get(FMLPaths.CONFIGDIR.get().toString(), MODID, "tables");
+        Path tablesFolder = Paths.get(FMLPaths.CONFIGDIR.get().toString(), MODID);
         manager = new LootTableManager(new File(tablesFolder.toUri()));
 
         ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, RelooterConfig.COMMON_SPEC);
@@ -83,6 +93,9 @@ public class Vickyesrelooter {
     private void commonSetup(final FMLCommonSetupEvent event) {
         LOGGER.info("HELLO FROM COMMON SETUP");
         LOGGER.info("DIRT BLOCK >> {}", ForgeRegistries.BLOCKS.getKey(Blocks.DIRT));
+        if (!enableRelooter) {
+            LOGGER.warn("Relooter is disabled, you should probably enable it.");
+        }
 
         event.enqueueWork(PacketHandler::register);
     }
@@ -93,55 +106,79 @@ public class Vickyesrelooter {
     }
 
     private void onLoadComplete(FMLLoadCompleteEvent event) {
-        MinecraftForge.EVENT_BUS.addListener((AddReloadListenerEvent e) -> e.addListener(manager));
         try {
-            manager.load();
+            manager.startFileWatcher();
         } catch (IOException e) {
             LOGGER.info("Failed to start table manager");
             throw new RuntimeException(e);
         }
     }
 
+    int amount = 10;
+    int added = 0;
+    private final Queue<RandomizableContainerBlockEntity> toLoot =
+            new ConcurrentLinkedQueue<>();
+
     @SubscribeEvent
     public void onChunkLoad(ChunkEvent.Load event) {
-        LevelChunk chunk = (LevelChunk) event.getChunk();
-        Level level = chunk.getLevel();
-        RandomSource random = chunk.getLevel().getRandom();
+        if (enableRelooter) {
+            LevelChunk chunk = (LevelChunk) event.getChunk();
+            Level level = chunk.getLevel();
+            RandomSource random = chunk.getLevel().getRandom();
 
-        if (level.isClientSide) return;
-        if (!event.isNewChunk() && !RelooterConfig.clearAlreadyLoadedChunks) return;
+            if (added < amount) {
+                added++;
+            }
 
-        for (BlockEntity be : chunk.getBlockEntities().values()) {
-            if (be instanceof ChestBlockEntity chest) {
-                CompoundTag tag = chest.getPersistentData();
+            if (level.isClientSide) return;
+            if (!event.isNewChunk() && !RelooterConfig.clearAlreadyLoadedChunks) return;
 
-                if (!tag.getBoolean(LOOT_DATA_KEY)) {
-                    applyCustomLoot(chest, random);
+            for (BlockEntity be : chunk.getBlockEntities().values()) {
+                if (be instanceof ChestBlockEntity entity) {
+                    toLoot.add(entity);
+                }
+                else if (be instanceof BarrelBlockEntity entity) {
+                    toLoot.add(entity);
                 }
             }
         }
     }
 
-    private void applyCustomLoot(ChestBlockEntity chest, RandomSource random) {
+    @SubscribeEvent
+    public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            for (int i = 0; i < 5; i++) { // process 5 chests per tick
+                RandomizableContainerBlockEntity entity = toLoot.poll();
+                if (entity != null) applyCustomLoot(entity, entity.getLevel().getRandom());
+            }
+        }
+    }
+
+    private void applyCustomLoot(RandomizableContainerBlockEntity entity, RandomSource random) {
+        if (entity.getPersistentData().getBoolean(LOOT_DATA_KEY) && applyOnlyOnce) return;
+
+        var pos = entity.getBlockPos();
         LootableHolder table = manager.chooseRandomTable(random);
         if (table == null) return;
+        LOGGER.info("Lootifying entity at {} {} {} with table {}", pos.getX(), pos.getY(), pos.getZ(), table.id);
 
-        chest.clearContent();
+        entity.clearContent();
 
-        int size = chest.getContainerSize();
+        int size = entity.getContainerSize();
+        var context = new ArrayList<LootableHolder.Lootable>();
 
         for (int i = 0; i < size; i++) {
-            LootableHolder.Lootable item = table.pickLoot(random);
+            LootableHolder.Lootable item = table.pickLoot(random, context);
             if (item == null) continue; // empty slot allowed
 
             ItemStack stack = item.createStack(random);
             if (!stack.isEmpty()) {
-                chest.setItem(i, stack);
+                entity.setItem(i, stack);
             }
         }
 
-        chest.getPersistentData()
+        entity.getPersistentData()
                 .putBoolean(LOOT_DATA_KEY, true);
-        chest.setChanged();
+        entity.setChanged();
     }
 }

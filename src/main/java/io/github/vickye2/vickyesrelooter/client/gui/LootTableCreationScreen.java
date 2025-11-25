@@ -1,14 +1,13 @@
 package io.github.vickye2.vickyesrelooter.client.gui;
 
+import com.mojang.datafixers.util.Pair;
 import io.github.vickye2.vickyesrelooter.client.gui.widgets.*;
 import io.github.vickye2.vickyesrelooter.data.LootableHolder;
 import io.github.vickye2.vickyesrelooter.network.PacketHandler;
 import io.github.vickye2.vickyesrelooter.network.packets.CreateTablePacket;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Button;
-import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.*;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
@@ -24,12 +23,14 @@ public class LootTableCreationScreen extends Screen {
 
     private ItemStack inputStack = ItemStack.EMPTY;
     private final List<LootableHolder.Lootable> lootables = new ArrayList<>();
+    private final List<LootableHolder.Lootable> singleLootables = new ArrayList<>();
 
     private EditBox idField, emptyWeight, tableWeight;
 
     private EditBox lootableNameField, lootableDescField, lootableWeight;
     private ColorPickerWidget textColorPicker, descriptionColorPicker;
     private IntegerPickerWidget minAmount, maxAmount;
+    private TooltipCheckbox20 isSingleLootable;
 
     private int slotY;
     private Integer minAmountValue = 1;
@@ -152,7 +153,14 @@ public class LootTableCreationScreen extends Screen {
                 lootable.textColor = textColorPicker.getColorInt();
                 lootable.descriptionColor = descriptionColorPicker.getColorInt();
 
-                lootables.add(lootable);
+                if (isSingleLootable.isChecked()) {
+                    singleLootables.add(lootable);
+                    isSingleLootable.setChecked(false);
+                }
+                else {
+                    lootables.add(lootable);
+                }
+
                 inputStack = ItemStack.EMPTY;
 
                 lootableWeight.setValue("0");
@@ -161,6 +169,11 @@ public class LootTableCreationScreen extends Screen {
                 initItemGrid();
             }
         }).bounds(width - 30, 4*18 + 30, 20, 20).build());
+
+
+        isSingleLootable = new TooltipCheckbox20(50, 50, 20, Component.literal("Enable feature"),
+                Component.literal("Make Lootable Once Per Chest"), false, ignored -> {});
+        isSingleLootable.setTooltip(Tooltip.create(Component.literal("This enables the cool feature!")));
 
         this.addRenderableWidget(Button.builder(Component.literal("Confirm"), btn -> {
             confirmTable();
@@ -195,38 +208,51 @@ public class LootTableCreationScreen extends Screen {
         int startX = 10;
         int startY = 10;
 
-        int rows = (lootables.size() + itemsPerRow - 1) / itemsPerRow;
+        // Combine both lists into one with a flag
+        List<Pair<LootableHolder.Lootable, Boolean>> allLootables = new ArrayList<>();
+        lootables.forEach(l -> allLootables.add(new Pair<>(l, false))); // normal lootable
+        singleLootables.forEach(l -> allLootables.add(new Pair<>(l, true))); // single lootable
+
+        int rows = (allLootables.size() + itemsPerRow - 1) / itemsPerRow;
         rows = Math.max(rows, 1);
 
-        for (int i = 0; i < lootables.size(); i++) {
-            LootableHolder.Lootable lootable = lootables.get(i);           // keep ref
+        for (int i = 0; i < allLootables.size(); i++) {
+            Pair<LootableHolder.Lootable, Boolean> pair = allLootables.get(i);
+            LootableHolder.Lootable lootable = pair.getFirst();
+            boolean isSingle = pair.getSecond();
+
             int row = i / itemsPerRow;
             int col = i % itemsPerRow;
 
             int x = startX + col * slotSize;
             int y = startY + row * slotSize;
 
-            ItemStack s = lootable.createStack(mc.level.random); // or mc.font.random if you have it
+            ItemStack s = lootable.createStack(mc.level.random);
 
-            // Use Consumer<ClickActionableItem> ideally; here we accept a widget param
             ClickActionableItem widget = new ClickActionableItem(x, y, s, (thiz) -> {
-                // remove the Lootable object (safe) instead of removing by index
-                lootables.remove(lootable);
-                // remove this exact widget instance
+                if (isSingle) singleLootables.remove(lootable);
+                else lootables.remove(lootable);
+
                 removeWidget(thiz);
                 lootableWidgets.remove(thiz);
 
-                // rebuild grid to re-layout and re-create widgets
+                // Rebuild grid to refresh layout
                 initItemGrid();
-            });
+            }) {
+                @Override
+                public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float v) {
+                    super.render(graphics, mouseX, mouseY, v);
+                    if (isSingle &&
+                            mouseX >= getX() && mouseX <= getX() + 16 &&
+                            mouseY >= getY() && mouseY <= getY() + 16) {
+                        graphics.renderTooltip(mc.font, Component.literal("[Single Lootable]"), x, y - 10);
+                    }
+                }
+            };
 
             lootableWidgets.add(widget);
             addRenderableWidget(widget);
         }
-    }
-
-    private void rebuildGrid() {
-        initItemGrid();
     }
 
     private void confirmTable() {
@@ -238,7 +264,7 @@ public class LootTableCreationScreen extends Screen {
             return;
         }
 
-        CreateTablePacket packet = new CreateTablePacket(id, empty, table, lootables);
+        CreateTablePacket packet = new CreateTablePacket(id, empty, table, lootables, singleLootables);
         PacketHandler.INSTANCE.sendToServer(packet);
         this.onClose();
     }

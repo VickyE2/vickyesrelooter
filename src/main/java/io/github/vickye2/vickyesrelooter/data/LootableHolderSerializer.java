@@ -10,16 +10,21 @@ public class LootableHolderSerializer implements JsonSerializer<LootableHolder> 
     public JsonElement serialize(LootableHolder loot, Type typeOfSrc, JsonSerializationContext ctx) {
         JsonObject obj = new JsonObject();
 
-        // Core fields
         obj.addProperty("emptyWeight", loot.emptyWeight);
         obj.addProperty("tableWeight", loot.tableWeight);
         obj.addProperty("id", loot.id);
 
-        JsonArray itemsArray = new JsonArray();
+        JsonArray itemsArray1 = new JsonArray();
         for (var item : loot.lootables) {
-            itemsArray.add(ctx.serialize(item));
+            itemsArray1.add(ctx.serialize(item));
         }
-        obj.add("lootables", itemsArray);
+        obj.add("lootables", itemsArray1);
+
+        JsonArray itemsArray2 = new JsonArray();
+        for (var item : loot.singleLootables) {
+            itemsArray2.add(ctx.serialize(item));
+        }
+        obj.add("singleLootables", itemsArray2);
 
         return obj;
     }

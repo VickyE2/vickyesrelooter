@@ -16,6 +16,8 @@ import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraftforge.server.ServerLifecycleHooks;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileReader;
@@ -28,10 +30,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
-public class LootTableManager extends SimpleJsonResourceReloadListener {
+public class LootTableManager {
     public static Thread tableWatcherThread;
     public static WatchService tableWatcher;
+    public static Logger LOGGER = LoggerFactory.getLogger(LootTableManager.class);
 
     public static final Gson gson = new GsonBuilder()
             .registerTypeAdapter(LootableHolder.class, new LootableHolderSerializer())
@@ -44,7 +48,6 @@ public class LootTableManager extends SimpleJsonResourceReloadListener {
     private final Map<String, LootableHolder> tables = new HashMap<>();
 
     public LootTableManager(File configDir) {
-        super(gson, "tables");
         this.folder = new File(configDir, "loot_tables");
     }
 
@@ -62,12 +65,15 @@ public class LootTableManager extends SimpleJsonResourceReloadListener {
         }
 
         // Load them
+        var names = new ArrayList<String>();
         for (File file : files) {
             try (FileReader reader = new FileReader(file)) {
                 LootableHolder holder = gson.fromJson(reader, LootableHolder.class);
+                names.add(holder.id);
                 tables.put(file.getName(), holder);
             }
         }
+        LOGGER.debug("Loaded table {}", String.join(", ", names));
     }
 
     public void startFileWatcher() throws IOException {
@@ -76,7 +82,9 @@ public class LootTableManager extends SimpleJsonResourceReloadListener {
             tableWatcher.close();
         }
 
-        Path tablesFolder = Paths.get(FMLPaths.CONFIGDIR.get().toString(), Vickyesrelooter.MODID, "tables");
+        load();
+
+        Path tablesFolder = folder.toPath();
         tableWatcher = FileSystems.getDefault().newWatchService();
         tablesFolder.register(tableWatcher, StandardWatchEventKinds.ENTRY_CREATE,
                 StandardWatchEventKinds.ENTRY_MODIFY,
@@ -136,6 +144,7 @@ public class LootTableManager extends SimpleJsonResourceReloadListener {
         LootableHolder emptyHolder = new LootableHolder();
         emptyHolder.lootables = new ArrayList<>();
         emptyHolder.tableWeight = 1;
+        emptyHolder.id = "extremely_default_table_table_smsm";
 
         File out = new File(folder, "default.json");
         try (FileWriter writer = new FileWriter(out)) {
@@ -148,38 +157,21 @@ public class LootTableManager extends SimpleJsonResourceReloadListener {
     }
 
     public LootableHolder chooseRandomTable(RandomSource r) {
-        int total = tables.values().stream().mapToInt(t -> t.tableWeight).sum();
-        if (total == 0) return null;
+        Collection<LootableHolder> tables = this.tables.values();
+        int total = tables.stream().mapToInt(t -> t.tableWeight).sum();
+        if (total == 0) {
+            LOGGER.info("Tables is null or empty");
+            return null;
+        }
 
         int roll = r.nextInt(total);
 
-        for (LootableHolder table : tables.values()) {
+        for (LootableHolder table : tables) {
             roll -= table.tableWeight;
             if (roll < 0) return table;
         }
 
         return null; // should never hit
-    }
-
-    @Override
-    protected void apply(Map<ResourceLocation, JsonElement> jsonMap, @NotNull ResourceManager resourceManager, @NotNull ProfilerFiller profiler) {
-        Map<String, LootableHolder> newTables = new HashMap<>();
-
-        jsonMap.forEach((id, json) -> {
-            try {
-                LootableHolder table = gson.fromJson(json, LootableHolder.class);
-                if (table != null && table.id != null) {
-                    newTables.put(table.id, table);
-                }
-            } catch (Exception e) {
-                Vickyesrelooter.LOGGER.error("Failed to parse table {}", id, e);
-            }
-        });
-
-        this.tables.clear();
-        this.tables.putAll(newTables);
-
-        Vickyesrelooter.LOGGER.info("Loaded {} tables!", tables.size());
     }
 }
 

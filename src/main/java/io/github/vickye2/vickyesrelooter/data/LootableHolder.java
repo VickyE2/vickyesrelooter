@@ -15,8 +15,20 @@ import java.util.List;
 public class LootableHolder {
     public String id;
     public List<Lootable> lootables;
+    public List<Lootable> singleLootables;
     public int emptyWeight = 45;
     public int tableWeight = 10;
+
+    @Override
+    public String toString() {
+        return "LootableHolder{" +
+                "id='" + id + '\'' +
+                ", emptyWeight=" + emptyWeight +
+                ", tableWeight=" + tableWeight +
+                ", lootables=" + lootables +
+                ", singleLootables=" + singleLootables +
+                '}';
+    }
 
     public static class Lootable {
         public String id;
@@ -28,8 +40,22 @@ public class LootableHolder {
         public int minAmount = 1;
         public int maxAmount = 1;
 
+        @Override
+        public String toString() {
+            return "Lootable{" +
+                    "id='" + id + '\'' +
+                    ", name='" + name + '\'' +
+                    ", description='" + description + '\'' +
+                    ", textColor=" + textColor +
+                    ", descriptionColor=" + descriptionColor +
+                    ", weight=" + weight +
+                    ", minAmount=" + minAmount +
+                    ", maxAmount=" + maxAmount +
+                    '}';
+        }
+
         public ItemStack createStack(RandomSource random) {
-            Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(this.id));
+            Item item = ForgeRegistries.ITEMS.getValue(ResourceLocation.parse(this.id));
             if (item == null) return ItemStack.EMPTY;
 
             int amount =
@@ -53,10 +79,14 @@ public class LootableHolder {
         }
     }
 
-    public LootableHolder.Lootable pickLoot(RandomSource random) {
+    public LootableHolder.Lootable pickLoot(RandomSource random, List<Lootable> ctxSelected) {
         int totalWeight = this.emptyWeight;
 
         for (LootableHolder.Lootable l : this.lootables) {
+            totalWeight += l.weight;
+        }
+
+        for (LootableHolder.Lootable l : this.singleLootables) {
             totalWeight += l.weight;
         }
 
@@ -68,6 +98,19 @@ public class LootableHolder {
 
         for (LootableHolder.Lootable l : this.lootables) {
             if (roll < l.weight) return l;
+            roll -= l.weight;
+        }
+
+        for (LootableHolder.Lootable l : this.singleLootables) {
+            if (roll < l.weight) {
+                if (ctxSelected.contains(l)) {
+                    roll -= l.weight;
+                }
+                else {
+                    ctxSelected.add(l);
+                    return l;
+                }
+            }
             roll -= l.weight;
         }
 

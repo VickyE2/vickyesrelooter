@@ -7,8 +7,6 @@ import net.minecraftforge.fml.event.config.ModConfigEvent;
 import org.apache.commons.lang3.tuple.Pair;
 import net.minecraftforge.fml.common.Mod;
 
-import java.util.stream.Collectors;
-
 @Mod.EventBusSubscriber(modid = Vickyesrelooter.MODID, bus = Mod.EventBusSubscriber.Bus.MOD)
 public class RelooterConfig {
     public static final ForgeConfigSpec COMMON_SPEC;
@@ -23,9 +21,11 @@ public class RelooterConfig {
 
     private static ForgeConfigSpec.ConfigValue<Boolean> ClearAlreadyLoadedChunks;
     private static ForgeConfigSpec.ConfigValue<Boolean> ApplyOnlyOnce;
+    private static ForgeConfigSpec.ConfigValue<Boolean> EnableRelooter;
 
     public static boolean clearAlreadyLoadedChunks;
     public static boolean applyOnlyOnce;
+    public static boolean enableRelooter;
 
     public static class CommonConfig {
 
@@ -37,6 +37,9 @@ public class RelooterConfig {
             ApplyOnlyOnce = builder
                     .comment("Once a chunk is affected it can't be affected again.")
                     .define("applyOnlyOnce", true);
+            EnableRelooter = builder
+                    .comment("Weather or not the relooter logic should run.")
+                    .define("enableRelooter", false);
             builder.pop();
         }
     }
@@ -45,5 +48,13 @@ public class RelooterConfig {
     static void onLoad(final ModConfigEvent.Loading event) {
         clearAlreadyLoadedChunks = ClearAlreadyLoadedChunks.get();
         applyOnlyOnce = ApplyOnlyOnce.get();
+        enableRelooter = EnableRelooter.get();
+    }
+
+    @SubscribeEvent
+    static void onReload(final ModConfigEvent.Reloading event) {
+        clearAlreadyLoadedChunks = ClearAlreadyLoadedChunks.get();
+        applyOnlyOnce = ApplyOnlyOnce.get();
+        enableRelooter = EnableRelooter.get();
     }
 }

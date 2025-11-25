@@ -42,6 +42,8 @@ public class ClickActionableItem extends AbstractWidget {
         }
     }
 
+
+
     @Override
     protected void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {}
 }
