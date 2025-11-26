@@ -14,17 +14,21 @@ public class LootableHolderSerializer implements JsonSerializer<LootableHolder> 
         obj.addProperty("tableWeight", loot.tableWeight);
         obj.addProperty("id", loot.id);
 
-        JsonArray itemsArray1 = new JsonArray();
-        for (var item : loot.lootables) {
-            itemsArray1.add(ctx.serialize(item));
+        if (loot.lootables != null && !loot.lootables.isEmpty()) {
+            JsonArray itemsArray1 = new JsonArray();
+            for (var item : loot.lootables) {
+                itemsArray1.add(ctx.serialize(item));
+            }
+            obj.add("lootables", itemsArray1);
         }
-        obj.add("lootables", itemsArray1);
 
-        JsonArray itemsArray2 = new JsonArray();
-        for (var item : loot.singleLootables) {
-            itemsArray2.add(ctx.serialize(item));
+        if (loot.singleLootables != null && !loot.singleLootables.isEmpty()) {
+            JsonArray itemsArray2 = new JsonArray();
+            for (var item : loot.singleLootables) {
+                itemsArray2.add(ctx.serialize(item));
+            }
+            obj.add("singleLootables", itemsArray2);
         }
-        obj.add("singleLootables", itemsArray2);
 
         return obj;
     }
