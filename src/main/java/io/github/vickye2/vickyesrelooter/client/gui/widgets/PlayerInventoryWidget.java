@@ -1,13 +1,15 @@
 package io.github.vickye2.vickyesrelooter.client.gui.widgets;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
@@ -17,6 +19,7 @@ import java.util.function.Consumer;
  * - calls onItemClicked with a copy of the clicked ItemStack
  * - shows vanilla item tooltips
  */
+@OnlyIn(Dist.CLIENT)
 public class PlayerInventoryWidget extends AbstractWidget {
 
     private final Minecraft mc = Minecraft.getInstance();

@@ -5,9 +5,12 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.function.Supplier;
 
+@OnlyIn(Dist.CLIENT)
 public class TooltipCheckbox20 extends Button {
     private boolean checked;
     private final Component tooltip;
@@ -42,8 +45,7 @@ public class TooltipCheckbox20 extends Button {
 
         // tick if checked
         if (checked) {
-            // draw a simple tick with text - you can replace with sprite
-            gui.drawString(font, Component.literal("✓"), boxX + (boxSize / 2) - 4, boxY + (boxSize / 2) - 8, 0xFF00FF00, false);
+            GuiUtil.drawCheckmarkInBox(gui, boxX, boxY, boxSize, 3.0f, 0xFF550000);
         }
 
         // label to the right of checkbox
@@ -57,7 +59,7 @@ public class TooltipCheckbox20 extends Button {
         // tooltip when hovered
         if (this.isHoveredOrFocused()) {
             // GuiGraphics has a renderTooltip overload that accepts Component
-            gui.renderTooltip(font, this.tooltip, mouseX, mouseY);
+            gui.renderTooltip(font, this.tooltip, mouseX, boxY);
         }
     }
 }

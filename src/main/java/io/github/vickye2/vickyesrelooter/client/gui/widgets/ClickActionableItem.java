@@ -6,13 +6,16 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 
 import java.util.function.Consumer;
 
+@OnlyIn(Dist.CLIENT)
 public class ClickActionableItem extends AbstractWidget {
     private final Consumer<ClickActionableItem> onCLick;
-    private final ItemStack itemStack;
-    private final Minecraft mc = Minecraft.getInstance();
+    protected final ItemStack itemStack;
+    protected final Minecraft mc = Minecraft.getInstance();
 
     public ClickActionableItem(int x, int y, ItemStack stack, Consumer<ClickActionableItem> onCLick) {
         super(x, y, 16, 16, Component.literal("Clickable Item"));

@@ -1,6 +1,7 @@
 package io.github.vickye2.vickyesrelooter.data;
 
 import com.google.gson.*;
+
 import java.lang.reflect.Type;
 
 public class LootableDeserializer implements JsonDeserializer<LootableHolder.Lootable> {
@@ -14,6 +15,7 @@ public class LootableDeserializer implements JsonDeserializer<LootableHolder.Loo
 
         loot.id = getString(obj, "id", "minecraft:stone");
         loot.name = getString(obj, "name", "");
+        loot.nbt = getString(obj, "nbt", "");
         loot.description = getString(obj, "description", "");
 
         loot.weight = getInt(obj, "weight", 1);
@@ -24,6 +26,9 @@ public class LootableDeserializer implements JsonDeserializer<LootableHolder.Loo
         loot.minAmount = getInt(obj, "minAmount", 1);
         loot.maxAmount = getInt(obj, "maxAmount", loot.minAmount);
 
+        loot.isSureSpawn = getBool(obj, "isSureSpawn", loot.isSureSpawn);
+        loot.sureSpawnGroup = getString(obj, "sureSpawnGroup", loot.sureSpawnGroup);
+
         return loot;
     }
 
@@ -33,6 +38,10 @@ public class LootableDeserializer implements JsonDeserializer<LootableHolder.Loo
 
     private static int getInt(JsonObject obj, String key, int def) {
         return obj.has(key) ? obj.get(key).getAsInt() : def;
+    }
+
+    private static boolean getBool(JsonObject obj, String key, boolean def) {
+        return obj.has(key) ? obj.get(key).getAsBoolean() : def;
     }
 
     private static int parseColor(JsonObject obj, String key, int def) {

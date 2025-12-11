@@ -5,12 +5,14 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.network.chat.Component;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
+@OnlyIn(Dist.CLIENT)
 public class IntegerPickerWidget extends AbstractWidget {
     private final Minecraft mc = Minecraft.getInstance();
     private final SimpleSlider slider;
@@ -32,17 +34,17 @@ public class IntegerPickerWidget extends AbstractWidget {
         double sliderVal = (this.min.get()) / (double)(this.max.get() - this.min.get());
 
         slider = new SimpleSlider(
-                x,
-                y,
-                120,
-                20,
+                x, y,
+                120, 20,
                 "Value",
-                sliderVal,
+                min.get(),   // initial value
+                min,
                 max,
-                (res) -> {
-                    value = this.min.get() + (int)(res * (this.max.get() - this.min.get()));
-                    onChange.accept(value);
-                }
+                (newVal) -> {
+                    this.value = (int) newVal;
+                    onChange.accept((int) newVal);
+                },
+                0
         );
     }
 

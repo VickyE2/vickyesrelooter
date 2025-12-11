@@ -18,13 +18,33 @@ modrinth {
     uploadFile = tasks.named("jar")
     gameVersions = ['1.20.1']
     loaders = ['forge']
-    status = "BETA"
+    status = "Release"
     changelog = """
-# VERSION - 0.0.2
-> There was a MAJOR fix.
-- Fixed loot tables not loading because of file mismatch (major fix)
-- Added support for single lootables (loads once per chest) also in the gui creator (minor addition)
-- Added reload to config (minor addition)
+# VERSION - 0.0.4
+> There were many improvements to the relooter system...
+- Indication of chests that have been relooted by adding a tag to the name (can be disabled in config). (minor addition)
+- Added the ability to mark a lootable in a loot-table as "sureSpawn" which means per chest assigned to that table that item will always be found. This also adds a grouping system so that sure spawns can compete for who actually spawns. (minor addition)
+- Added a list to the config for containers that can be relooted (though in code only RandomizableContainerBlockEntity will be relooted). (minor addition)
+- Added the config line to enable or disable the relooter from relooting player placed chests no matter the circumstance. (minor addition)
+- Fixed a bug for the min and max amount of items a relooter table creates in the relooter gui. (minor bug fix)
+- Improved the loot table creation gui tooltips for items. (minor improvement)
+- Improved looting logic by making it an asynchronous task for faster and better larger chest count handling. (major improvement)
+
+Indepth:
+*   **Asynchronous Looting (Major Performance Boost!):** We've moved the heavy lifting of chest re-looting to a dedicated async worker. This means your server will breathe a sigh of relief, especially with lots of chests, and say goodbye to any potential tick lag. Much faster, much smoother!
+*   **"Sure Spawn" Lootables:** Ever wanted a certain item to *always* appear in a chest from a specific loot table? Now you can! We've added a `isSureSpawn` flag and `sureSpawnGroup` to lootables. Items in the same group will compete by weight, ensuring a variety of guaranteed goodies without overflowing chests. This adds a new layer of strategic loot design.
+*   **Player-Placed Chest Handling:** A new config option `canOverwritePlayerPlacedChests` lets you decide if the relooter should touch chests placed by players. By default, it'll leave 'em alone, but you can unleash the relooter on anything if you're feeling chaotic.
+*   **Configurable Allowed Containers:** You can now specify *which* container blocks (like chests, barrels) the relooter should target in the config. This offers more control and flexibility.
+*   **Visual Looted Indication:** Ever wonder if a chest has been re-looted? Now you'll know! A configurable tag (default: "[RELOOTED]") with a customizable color will appear in the chest's name once it's been processed. Can be toggled off if you prefer the mystery.
+*   **NBT Support for Lootables:** Good news for all you modpack creators! Lootables can now properly save and load NBT data, so your fancy, custom-nbt items (like those awesome TacZ guns) will keep their special properties. This fixes a major bug from before.
+*   **GUI Improvements:**
+    *   **Min/Max Amount Fix:** The loot table creation GUI now correctly handles and displays minimum and maximum item amounts, fixing a pesky bug.
+    *   **Improved Item Tooltips:** Tooltips in the GUI are now more informative, clearly showing if an item is a "Single Lootable" or "Sure Spawn".
+    *   **New "Sure Spawn Group" Field:** A dedicated input field for defining `sureSpawnGroup` for your guaranteed items.
+*   **Build & Documentation Updates:**
+    *   Updated `gradle.properties` to version `0.0.4`.
+    *   Added `GuiUtil.java` to help draw those snazzy checkmarks in the GUI.
+    *   Moved `README.md` to its proper place (oops!) and updated it with the latest version and features.
 """
 }
 

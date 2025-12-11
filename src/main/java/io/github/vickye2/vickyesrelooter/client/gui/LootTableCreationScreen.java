@@ -1,23 +1,32 @@
 package io.github.vickye2.vickyesrelooter.client.gui;
 
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.datafixers.util.Pair;
 import io.github.vickye2.vickyesrelooter.client.gui.widgets.*;
 import io.github.vickye2.vickyesrelooter.data.LootableHolder;
 import io.github.vickye2.vickyesrelooter.network.PacketHandler;
 import io.github.vickye2.vickyesrelooter.network.packets.CreateTablePacket;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.*;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.api.distmarker.OnlyIn;
 import net.minecraftforge.registries.ForgeRegistries;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
+@OnlyIn(Dist.CLIENT)
 public class LootTableCreationScreen extends Screen {
     private final Minecraft mc = Minecraft.getInstance();
 
@@ -27,10 +36,10 @@ public class LootTableCreationScreen extends Screen {
 
     private EditBox idField, emptyWeight, tableWeight;
 
-    private EditBox lootableNameField, lootableDescField, lootableWeight;
+    private EditBox lootableNameField, lootableDescField, lootableWeight, lootableSSGroupField;
     private ColorPickerWidget textColorPicker, descriptionColorPicker;
     private IntegerPickerWidget minAmount, maxAmount;
-    private TooltipCheckbox20 isSingleLootable;
+    private TooltipCheckbox20 isSingleLootable, isSureSpawnLootable;
 
     private int slotY;
     private Integer minAmountValue = 1;
@@ -113,7 +122,7 @@ public class LootTableCreationScreen extends Screen {
         minAmount = new IntegerPickerWidget(
                 200, y,
                 () -> 1,
-                () -> maxAmountValue,
+                () -> maxAmountValue - 2,
                 value -> minAmountValue = value
         );
         this.addRenderableWidget(minAmount);
@@ -150,8 +159,19 @@ public class LootTableCreationScreen extends Screen {
                 lootable.minAmount = minAmountValue;
                 lootable.description = lootableDescField.getValue();
                 lootable.name = lootableNameField.getValue();
+                lootable.nbt = inputStack.getTag() != null ? inputStack.getTag().toString() : "";
                 lootable.textColor = textColorPicker.getColorInt();
                 lootable.descriptionColor = descriptionColorPicker.getColorInt();
+
+                if (isSureSpawnLootable.isChecked()) {
+                    lootable.isSureSpawn = true;
+                    if (!lootableSSGroupField.getValue().isEmpty())
+                        lootable.sureSpawnGroup = lootableSSGroupField.getValue();
+                    isSureSpawnLootable.setChecked(false);
+                    lootableSSGroupField.setValue("");
+                } else {
+                    lootable.isSureSpawn = false;
+                }
 
                 if (isSingleLootable.isChecked()) {
                     singleLootables.add(lootable);
@@ -163,17 +183,28 @@ public class LootTableCreationScreen extends Screen {
 
                 inputStack = ItemStack.EMPTY;
 
-                lootableWeight.setValue("0");
+                lootableWeight.setValue("1");
                 lootableDescField.setValue("");
                 lootableNameField.setValue("");
                 initItemGrid();
             }
-        }).bounds(width - 30, 4*18 + 30, 20, 20).build());
+                })
+                .bounds(width - 30, 4 * 18 + 30, 20, 20).build());
 
 
-        isSingleLootable = new TooltipCheckbox20(50, 50, 20, Component.literal("Enable feature"),
+        isSingleLootable = new TooltipCheckbox20(width - LENGTH, 4 * 18 + 60, 20, Component.literal("Enable single lootable"),
                 Component.literal("Make Lootable Once Per Chest"), false, ignored -> {});
-        isSingleLootable.setTooltip(Tooltip.create(Component.literal("This enables the cool feature!")));
+        isSingleLootable.setTooltip(Tooltip.create(Component.literal("This enables the single lootable feature!")));
+        addRenderableWidget(isSingleLootable);
+
+        isSureSpawnLootable = new TooltipCheckbox20(width - LENGTH, 4 * 18 + 80, 20, Component.literal("Enable sure spawn"),
+                Component.literal("Make Lootable Assured To Spawn Per Chest"), false, ignored -> {
+        });
+        isSureSpawnLootable.setTooltip(Tooltip.create(Component.literal("This enables the assured spawn feature!")));
+        addRenderableWidget(isSureSpawnLootable);
+
+        lootableSSGroupField = new EditBox(this.font, 40 + LENGTH, y, LENGTH / 2, 20, Component.literal("Sure Spawn Group"));
+        addRenderableWidget(lootableSSGroupField);
 
         this.addRenderableWidget(Button.builder(Component.literal("Confirm"), btn -> {
             confirmTable();
@@ -227,7 +258,12 @@ public class LootTableCreationScreen extends Screen {
             int x = startX + col * slotSize;
             int y = startY + row * slotSize;
 
-            ItemStack s = lootable.createStack(mc.level.random);
+            ItemStack s;
+            try {
+                s = lootable.createStack(mc.level.random);
+            } catch (CommandSyntaxException e) {
+                throw new RuntimeException(e);
+            }
 
             ClickActionableItem widget = new ClickActionableItem(x, y, s, (thiz) -> {
                 if (isSingle) singleLootables.remove(lootable);
@@ -242,10 +278,18 @@ public class LootTableCreationScreen extends Screen {
                 @Override
                 public void render(@NotNull GuiGraphics graphics, int mouseX, int mouseY, float v) {
                     super.render(graphics, mouseX, mouseY, v);
-                    if (isSingle &&
-                            mouseX >= getX() && mouseX <= getX() + 16 &&
+                    var tooltip = Screen.getTooltipFromItem(this.mc, itemStack);
+                    if (lootable.isSureSpawn || isSingle)
+                        tooltip.add(Component.empty());
+                    if (lootable.isSureSpawn)
+                        tooltip.add(Component.literal("[Sure Spawn] - " + lootable.sureSpawnGroup).withStyle(ChatFormatting.DARK_PURPLE));
+                    if (isSingle)
+                        tooltip.add(Component.literal("[Single Lootable]").withStyle(ChatFormatting.DARK_RED));
+                    if (mouseX >= getX() && mouseX <= getX() + 16 &&
                             mouseY >= getY() && mouseY <= getY() + 16) {
-                        graphics.renderTooltip(mc.font, Component.literal("[Single Lootable]"), x, y - 10);
+                        graphics.renderTooltip(mc.font,
+                                tooltip, itemStack.getTooltipImage(),
+                                mouseX, mouseY - 10);
                     }
                 }
             };
@@ -257,6 +301,9 @@ public class LootTableCreationScreen extends Screen {
 
     private void confirmTable() {
         String id = idField.getValue().trim();
+
+        if (emptyWeight.getValue().trim().isEmpty() || tableWeight.getValue().trim().isEmpty()) return;
+
         int empty = Integer.parseInt(emptyWeight.getValue().trim());
         int table = Integer.parseInt(tableWeight.getValue().trim());
 
@@ -285,6 +332,7 @@ public class LootTableCreationScreen extends Screen {
         stack.drawString(this.font, "Table Id:", idField.getX(), idField.getY() - 15, 0xFFFFFF);
         stack.drawString(this.font, "Table Empty Weight:", emptyWeight.getX(), emptyWeight.getY() - 15, 0xFFFFFF);
         stack.drawString(this.font, "Table Weight:", tableWeight.getX(), tableWeight.getY() - 15, 0xFFFFFF);
+        stack.drawString(this.font, "Sure Spawn Lootable Group:", lootableSSGroupField.getX(), lootableSSGroupField.getY() - 15, 0xFFFFFF);
         stack.drawString(this.font, "Lootable Weight:", lootableWeight.getX(), lootableWeight.getY() - 15, 0xFFFFFF);
         stack.drawString(this.font, "Lootable Name:", lootableNameField.getX(), lootableNameField.getY() - 15, 0xFFFFFF);
         stack.drawString(this.font, "Lootable Description:", lootableDescField.getX(), lootableDescField.getY() - 15, 0xFFFFFF);
